@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
                         status.textContent = 'Captura iniciada!';
                         startBtn.disabled = true;
                         stopBtn.disabled = false;
-                        intervalId = setInterval(() => capturePhoto(video), 1000);
+                        intervalId = setInterval(() => capturePhoto(video), 3000);
                     } catch (err) {
                         console.error("Erro ao acessar a câmera: ", err);
                         status.textContent = 'Erro ao acessar a câmera. Permita o acesso e tente novamente.';
