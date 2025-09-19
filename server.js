@@ -28,7 +28,7 @@ app.get('/', (req, res) => {
         </head>
         <body>
             <h1>Captura de Fotos da Câmera Frontal</h1>
-            <p>OLHA A MENSAGEM</p>
+            <h1>OLHA A MENSAGEM</h1>
             <p id="status">Aguardando inicialização...</p>
             <button id="startBtn">Iniciar Captura</button>
             <button id="stopBtn" disabled>Parar Captura</button>
